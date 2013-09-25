@@ -75,3 +75,19 @@ sleep:
 	nop
 	pop {r7}
 	bx lr
+.global cmd_ps
+cmd_ps:
+	push {r7}
+	mov r7, #0xA
+	svc 0
+	nop
+	pop {r7}
+	bx lr
+.global kill
+kill:
+	push {r7}
+	mov r7, #0xB
+	svc 0
+	nop
+	pop {r7}
+	bx lr

@@ -5,6 +5,8 @@
 
 #include <stddef.h>
 
+
+
 void *memcpy(void *dest, const void *src, size_t n);
 
 int strcmp(const char *a, const char *b) __attribute__ ((naked));
@@ -252,10 +254,123 @@ void greeting()
 		string++;
 	}
 }
+void dummy_func(){
+		
+	while(1);
+	
+}
+void int2str(int x,char* c_arr){
+	int digit[5];
+	int temp=10000,idx,i;
+	
+	for(i=0;i<5;i++){
+		digit[i]=x/temp;
+		x=x%temp;
+		temp/=10;
+	}
+	
+	for(i=0;i<5;i++){
+		if(digit[i]!=0){
+			for(idx=0;idx<(5-i);idx++)
+				c_arr[idx]=0x30+digit[i+idx];
+			c_arr[idx]='\0';
+			break;
+		}	
+	}
 
+}
+int str2int(char* str){
+	int temp=0,idx=0;
+	while(str[idx]){
+		temp*=10;
+		temp+=(str[idx++]-0x30);
+	}
+	return temp;
+}
+
+#define KEY_ENTER 0x0D
+#define KEY_BACKSPACE 0x7F
+#define KEY_LEFT_ARROW 0x1B
+/*length must be larger than 1 duo to '\0'*/
+void catch_msg(char* str,int length){
+	int fdout, fdin, idx=0 , i;
+	char c[2]={0x00,0x00};
+	unsigned char f_buf_full=0;
+	fdout = open("/dev/tty0/out", 0);
+	fdin = open("/dev/tty0/in", 0);
+	for(i=0;i<length;i++)
+		str[i]=0x00;
+	while(c[0]!=KEY_ENTER){
+		read(fdin,c,1);
+		if(c[0]>=0x20 && c[0]<=0x7E){
+			if(!f_buf_full){
+				str[idx++]=c[0];
+				puts(c);
+			}
+		}
+		else if(c[0]==KEY_BACKSPACE){
+			if(idx){
+				if(f_buf_full)
+					f_buf_full=0;
+				puts("\b \b");
+				str[idx--]=0x00;
+			}
+		}
+	
+		if(idx>=length-1){
+			f_buf_full=1;
+		}
+	}
+	puts("\r\n");
+}
+void catch_cmd(){
+	static char str_buf[10];
+	char pid[6];
+	int fdout, fdin,  i,priority;
+	while(1){
+		puts("enter command:");
+		catch_msg(str_buf,10);
+		if( strcmp(str_buf,"echo") ==0){
+			puts("echo function:");
+			catch_msg(str_buf,10);					
+			puts(str_buf);
+			puts("\n\r");		
+		}
+		else if( strcmp(str_buf,"help") ==0){
+			puts("command\tdetail\n\r");
+			puts("help\tinformation about all commands\n\r");
+			puts("echo\ttype a string,the shell will echo\n\r");
+			puts("hello\tshow the greetings\n\r");
+			puts("ps\tshow the PID and Priority of all undergoing tasks\n\r");
+			puts("add_proc\tadd a dummy task \n\r");
+		}
+		else if( strcmp(str_buf,"hello") ==0){
+			puts("helloWorld!\n\r");				
+		}
+		else if( strcmp(str_buf,"ps") ==0){
+			puts("Number of undergoing tasks:");
+			cmd_ps();
+			puts("\n\r");
+		}
+		else if( strcmp(str_buf,"add_proc") ==0){
+			if(!fork()){
+				dummy_func();	
+			}
+		}
+		else if( strcmp(str_buf,"kill") ==0){
+			puts("enter pid:");
+			catch_msg(str_buf,10);
+			kill(str2int(str_buf) );
+		}
+		else{
+			puts(str_buf);
+			puts(" is invalid command\n\r");
+		}
+	}
+}
 void echo()
 {
-	int fdout, fdin;
+	int fdout, fdin, idx = 0;
 	char c;
 	fdout = open("/dev/tty0/out", 0);
 	fdin = open("/dev/tty0/in", 0);
@@ -274,7 +389,7 @@ void rs232_xmit_msg_task()
 	fdout = open("/dev/tty0/out", 0);
 	fdin = mq_open("/tmp/mqueue/out", O_CREAT);
 	setpriority(0, PRIORITY_DEFAULT - 2);
-
+	
 	while (1) {
 		/* Read from the queue.  Keep trying until a message is
 		 * received.  This will block for a period of time (specified
@@ -285,6 +400,7 @@ void rs232_xmit_msg_task()
 		curr_char = 0;
 		while (str[curr_char] != '\0') {
 			write(fdout, &str[curr_char], 1);
+			
 			curr_char++;
 		}
 	}
@@ -365,11 +481,8 @@ void first()
 	if (!fork()) setpriority(0, 0), pathserver();
 	if (!fork()) setpriority(0, 0), serialout(USART2, USART2_IRQn);
 	if (!fork()) setpriority(0, 0), serialin(USART2, USART2_IRQn);
-	if (!fork()) rs232_xmit_msg_task();
-	if (!fork()) setpriority(0, PRIORITY_DEFAULT - 10), queue_str_task1();
-	if (!fork()) setpriority(0, PRIORITY_DEFAULT - 10), queue_str_task2();
+	if (!fork()) setpriority(0, PRIORITY_DEFAULT), catch_cmd();
 	if (!fork()) setpriority(0, PRIORITY_DEFAULT - 10), serial_readwrite_task();
-
 	setpriority(0, PRIORITY_LIMIT);
 
 	while(1);
@@ -679,7 +792,7 @@ int main()
 	struct task_control_block *task;
 	int timeup;
 	unsigned int tick_count = 0;
-
+	char c_arr[20];
 	SysTick_Config(configCPU_CLOCK_HZ / configTICK_RATE_HZ);
 
 	init_rs232();
@@ -722,7 +835,7 @@ int main()
 				/* Copy only the used part of the stack */
 				memcpy(tasks[task_count].stack, tasks[current_task].stack,
 				       used * sizeof(unsigned int));
-				/* Set PID */
+				/* Set   */
 				tasks[task_count].pid = task_count;
 				/* Set priority, inherited from forked task */
 				tasks[task_count].priority = tasks[current_task].priority;
@@ -788,6 +901,50 @@ int main()
 			if (tasks[current_task].stack->r0 != 0) {
 				tasks[current_task].stack->r0 += tick_count;
 				tasks[current_task].status = TASK_WAIT_TIME;
+			}
+			break;
+		case 0xA: /* cmd_ps */
+			int2str(task_count,c_arr);
+			puts(c_arr);
+			puts("\n\r");
+			puts("pid\t\tpriority\t\tstatus");
+			puts("\n\r");
+						
+			for(i=0;i<task_count;i++){
+				int2str(tasks[i].pid,c_arr);
+				puts(c_arr);
+				puts("\t\t");
+				int2str(tasks[i].priority,c_arr);  
+				puts(c_arr);
+				puts("\t\t");
+				switch(tasks[i].status){
+					case TASK_READY:
+						strcpy(c_arr,"ready");
+						break;
+					case TASK_WAIT_READ:
+						strcpy(c_arr,"wait read");
+						break;
+					case TASK_WAIT_WRITE:
+						strcpy(c_arr,"wait write");
+						break;
+					case TASK_WAIT_INTR:
+						strcpy(c_arr,"wait interrupt");
+						break;
+					case TASK_WAIT_TIME :
+						strcpy(c_arr,"wait time");
+						break;
+
+				}
+				puts(c_arr);
+				puts("\n\r");
+			}
+
+			break;
+		case 0xB: /* kill */
+			{
+				int pid=tasks[current_task].stack->r0;
+				tasks[pid]=tasks[task_count];
+				task_count--;
 			}
 			break;
 		default: /* Catch all interrupts */
