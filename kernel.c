@@ -5,7 +5,7 @@
 
 #include <stddef.h>
 
-
+unsigned char temp;
 
 void *memcpy(void *dest, const void *src, size_t n);
 
@@ -323,6 +323,26 @@ void catch_msg(char* str,int length){
 	}
 	puts("\r\n");
 }
+
+int semihost_call(unsigned char sys_code, void *arg) __attribute__ ((naked));
+int semihost_call(unsigned char sys_code, void *arg)
+{
+    __asm__( \
+      "bkpt 0xAB\n"\
+      "nop\n" \
+      "bx lr\n"\
+        :::\
+    );
+}
+int host_sys_cmd(const char *cmd){
+	unsigned int arg[2] ={cmd,strlen(cmd) };
+	return semihost_call(0x12, arg);
+}
+int host_open(const char *filename, int flags)
+{
+    unsigned int arg[3] ={filename,4,strlen(filename) };
+    return semihost_call(0x01, arg);
+}
 void catch_cmd(){
 	static char str_buf[10];
 	char pid[6];
@@ -343,9 +363,11 @@ void catch_cmd(){
 			puts("hello\tshow the greetings\n\r");
 			puts("ps\tshow the PID and Priority of all undergoing tasks\n\r");
 			puts("add_proc\tadd a dummy task \n\r");
+			puts("host cmd\tcommand on host bash \n\r");
 		}
 		else if( strcmp(str_buf,"hello") ==0){
-			puts("helloWorld!\n\r");				
+			puts("helloWorld!\n\r");
+			host_open("test.txt",4);				
 		}
 		else if( strcmp(str_buf,"ps") ==0){
 			puts("Number of undergoing tasks:");
@@ -361,6 +383,11 @@ void catch_cmd(){
 			puts("enter pid:");
 			catch_msg(str_buf,10);
 			kill(str2int(str_buf) );
+		}
+		else if( strcmp(str_buf,"host cmd") ==0){
+			puts("enter cmd:");
+			catch_msg(str_buf,10);
+			host_sys_cmd(str_buf);
 		}
 		else{
 			puts(str_buf);
