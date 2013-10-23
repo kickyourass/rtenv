@@ -18,3 +18,4 @@ int mknod(int fd, int mode, int dev);
 void sleep(unsigned int);
 void cmd_ps();
 void kill(int pid);
+

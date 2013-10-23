@@ -51,7 +51,7 @@ qemu: main.bin $(QEMU_STM32)
 qemudbg: main.bin $(QEMU_STM32)
 	$(QEMU_STM32) -M stm32-p103 \
 		-gdb tcp::3333 -S \
-		-kernel main.bin
+		-kernel main.bin -semihosting
 
 
 qemu_remote: main.bin $(QEMU_STM32)

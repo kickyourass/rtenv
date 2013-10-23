@@ -2,11 +2,10 @@
 
 	.type	SysTick_Handler, %function
 	.global SysTick_Handler
-	.type	USART2_IRQHandler, %function
-	.global USART2_IRQHandler
+	
 SysTick_Handler:
-USART2_IRQHandler:
-	mrs r0, psp
+
+	mrs r0, psp	
 	stmdb r0!, {r7}
 
 	/* Get ISR number */

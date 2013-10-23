@@ -107,6 +107,24 @@ struct task_control_block {
     struct task_control_block  *next;
 };
 
+uint16_t usart_rx_buf;
+uint8_t f_rx_get=0;
+void USART2_IRQHandler(void)
+{
+    /* Make sure the interrupt was triggered by a transmit.  This should
+     * always be true.
+     */
+ 
+    if(USART_GetITStatus(USART2, USART_IT_RXNE) != RESET) {
+        
+        /* Send the next byte */
+        usart_rx_buf=USART_ReceiveData(USART2);
+	f_rx_get=1;
+	USART_SendData(USART2, usart_rx_buf   );
+
+    }
+}
+
 /* 
  * pathserver assumes that all files are FIFOs that were registered
  * with mkfifo.  It also assumes a global tables of FDs shared by all
@@ -301,7 +319,11 @@ void catch_msg(char* str,int length){
 	for(i=0;i<length;i++)
 		str[i]=0x00;
 	while(c[0]!=KEY_ENTER){
-		read(fdin,c,1);
+		//read(fdin,c,1);
+		while(!f_rx_get);
+		
+		c[0]=usart_rx_buf;
+		f_rx_get=0;
 		if(c[0]>=0x20 && c[0]<=0x7E){
 			if(!f_buf_full){
 				str[idx++]=c[0];
@@ -506,11 +528,11 @@ void first()
 	setpriority(0, 0);
 
 	if (!fork()) setpriority(0, 0), pathserver();
-	if (!fork()) setpriority(0, 0), serialout(USART2, USART2_IRQn);
-	if (!fork()) setpriority(0, 0), serialin(USART2, USART2_IRQn);
+	//if (!fork()) setpriority(0, 0), serialout(USART2, USART2_IRQn);
+	//if (!fork()) setpriority(0, 0), serialin(USART2, USART2_IRQn);
 	if (!fork()) setpriority(0, PRIORITY_DEFAULT), catch_cmd();
-	if (!fork()) setpriority(0, PRIORITY_DEFAULT - 10), serial_readwrite_task();
-	setpriority(0, PRIORITY_LIMIT);
+	//if (!fork()) setpriority(0, PRIORITY_DEFAULT - 10), serial_readwrite_task();
+	//setpriority(0, PRIORITY_LIMIT);
 
 	while(1);
 }
@@ -824,6 +846,11 @@ int main()
 
 	init_rs232();
 	__enable_irq();
+	enable_rs232_interrupts();
+	USART_SendData(USART2,'5');
+	USART_SendData(USART2,'5');
+	USART_SendData(USART2,'6');
+	USART_SendData(USART2,'6');
 
 	tasks[task_count].stack = (void*)init_task(stacks[task_count], &first);
 	tasks[task_count].pid = 0;
