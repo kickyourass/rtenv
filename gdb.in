@@ -1,0 +1,17 @@
+set logging overwrite on
+file main.elf
+target remote :3333
+b USART2_IRQHandler
+b kernel.c:126
+output {uint32_t} 0xE000e014
+commands 1
+output {uint32_t} 0xE000e018
+c
+end
+
+commands 2
+output {uint32_t} 0xE000e018
+c
+end
+c
+

@@ -120,8 +120,6 @@ void USART2_IRQHandler(void)
         /* Send the next byte */
         usart_rx_buf=USART_ReceiveData(USART2);
 	f_rx_get=1;
-	USART_SendData(USART2, usart_rx_buf   );
-
     }
 }
 
@@ -314,8 +312,7 @@ void catch_msg(char* str,int length){
 	int fdout, fdin, idx=0 , i;
 	char c[2]={0x00,0x00};
 	unsigned char f_buf_full=0;
-	fdout = open("/dev/tty0/out", 0);
-	fdin = open("/dev/tty0/in", 0);
+	
 	for(i=0;i<length;i++)
 		str[i]=0x00;
 	while(c[0]!=KEY_ENTER){
@@ -528,11 +525,9 @@ void first()
 	setpriority(0, 0);
 
 	if (!fork()) setpriority(0, 0), pathserver();
-	//if (!fork()) setpriority(0, 0), serialout(USART2, USART2_IRQn);
-	//if (!fork()) setpriority(0, 0), serialin(USART2, USART2_IRQn);
-	if (!fork()) setpriority(0, PRIORITY_DEFAULT), catch_cmd();
-	//if (!fork()) setpriority(0, PRIORITY_DEFAULT - 10), serial_readwrite_task();
-	//setpriority(0, PRIORITY_LIMIT);
+	
+	if (!fork()) setpriority(0, 0), catch_cmd();
+	
 
 	while(1);
 }
@@ -847,10 +842,7 @@ int main()
 	init_rs232();
 	__enable_irq();
 	enable_rs232_interrupts();
-	USART_SendData(USART2,'5');
-	USART_SendData(USART2,'5');
-	USART_SendData(USART2,'6');
-	USART_SendData(USART2,'6');
+	
 
 	tasks[task_count].stack = (void*)init_task(stacks[task_count], &first);
 	tasks[task_count].pid = 0;
